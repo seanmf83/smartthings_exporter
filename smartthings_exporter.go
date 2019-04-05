@@ -21,6 +21,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+
 	"github.com/kadaan/gosmart"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,9 +33,6 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"net/http"
-	"os"
-	"path/filepath"
 )
 
 const (
@@ -61,6 +62,12 @@ var (
 		prometheus.CounterOpts{
 			Name: "smartthings_invalid_metric",
 			Help: "Total number of metrics that were invalid.",
+		},
+	)
+	unknownMetric = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "smartthings_unknown_metric",
+			Help: "Total number of metrics that exporter didn't know.",
 		},
 	)
 	metrics = map[string]*metric{
@@ -181,23 +188,37 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		plog.Errorf("Error reading list of devices from %v: %v\n", e.endpoint, err)
 	}
 
+	// TODO run in parallel to reduce time
 	for _, dev := range devs {
-		for k, val := range dev.Attributes {
+		devinfo, errdi := gosmart.GetDeviceInfo(e.client, e.endpoint, dev.ID)
+		if errdi != nil {
+			plog.Errorf("GetDeviceInfo Failed => %v", err)
+			continue
+		}
+
+		plog.Debugf("Dev> %s Id:%s - Fetching Attributes => %d\n", dev.DisplayName, dev.ID, len(devinfo.Attributes))
+
+		for k, val := range devinfo.Attributes {
 			if val == nil {
 				val = ""
 			}
+
 			var value float64
 			//var metricDesc *prometheus.Desc
 			metric := metrics[k]
 			if metric == nil {
+				unknownMetric.Inc()
+				plog.Debugf("  Attr> '%s' [val=%v] - Unknown", k, val)
 				continue
 			}
 			value, err = metric.valueMapper(val)
+			plog.Debugf("  Attr> '%s' [val=%f] - %s", k, value, metric.description)
+
 			if err == nil {
 				ch <- prometheus.MustNewConstMetric(metric.description, prometheus.GaugeValue, value, dev.ID, dev.DisplayName)
 			} else {
 				invalidMetric.Inc()
-				plog.Errorf("Cannot process sensor data for %s (%v): %v", k, val, err)
+				plog.Errorf("%s - '%s' [val=%s] - %v", dev.DisplayName, k, value, err)
 			}
 		}
 	}
@@ -320,9 +341,9 @@ func monitor(_ *kingpin.ParseContext) error {
 	if err != nil {
 		plog.Fatalln(err)
 		return err
-
 	}
 	prometheus.MustRegister(invalidMetric)
+	prometheus.MustRegister(unknownMetric)
 	prometheus.MustRegister(exporter)
 
 	http.Handle(*metricsPath, promhttp.Handler())
