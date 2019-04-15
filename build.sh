@@ -19,6 +19,8 @@ BUILD_DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 BINARY_DIR="$BUILD_DIR/.bin"
 VERSION=$(cat $BUILD_DIR/.version)
 
+BASEPATH='github.com/seanmf83/smartthings_exporter'
+
 function verbose() { echo -e "$*"; }
 function error() { echo -e "ERROR: $*" 1>&2; }
 function fatal() { echo -e "ERROR: $*" 1>&2; exit 1; }
@@ -228,7 +230,7 @@ function run() {
   fi
 
   verbose "Building binaries..."
-  ${GOX} -os="${XC_OS}" -arch="${XC_ARCH}" -osarch="!darwin/arm !darwin/arm64" -ldflags "-s -w -X github.com/kadaan/smartthings_exporter/vendor/github.com/prometheus/common/version.Version=$VERSION -X github.com/kadaan/smartthings_exporter/vendor/github.com/prometheus/common/version.Revision=$revision -X github.com/kadaan/smartthings_exporter/vendor/github.com/prometheus/common/version.Branch=$branch -X github.com/kadaan/smartthings_exporter/vendor/github.com/prometheus/common/version.BuildUser=$USER@$host -X github.com/kadaan/smartthings_exporter/vendor/github.com/prometheus/common/version.BuildDate=$buildDate" -output="dist/{{.Dir}}_{{.OS}}_{{.Arch}}" || fatal "gox failed: $?"
+  ${GOX} -os="${XC_OS}" -arch="${XC_ARCH}" -osarch="!darwin/arm !darwin/arm64" -ldflags "-s -w -X $BASEPATH/vendor/github.com/prometheus/common/version.Version=$VERSION -X $BASEPATH/vendor/github.com/prometheus/common/version.Revision=$revision -X $BASEPATH/vendor/github.com/prometheus/common/version.Branch=$branch -X $BASEPATH/vendor/github.com/prometheus/common/version.BuildUser=$USER@$host -X $BASEPATH/vendor/github.com/prometheus/common/version.BuildDate=$buildDate" -output="dist/{{.Dir}}_{{.OS}}_{{.Arch}}" || fatal "gox failed: $?"
 
   verbose "Compressing binaries..."
   for f in dist/*; do

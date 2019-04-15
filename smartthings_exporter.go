@@ -218,7 +218,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 				ch <- prometheus.MustNewConstMetric(metric.description, prometheus.GaugeValue, value, dev.ID, dev.DisplayName)
 			} else {
 				invalidMetric.Inc()
-				plog.Errorf("%s - '%s' [val=%s] - %v", dev.DisplayName, k, value, err)
+				plog.Errorf("%s - '%s' [val=%f] - %v", dev.DisplayName, k, value, err)
 			}
 		}
 	}

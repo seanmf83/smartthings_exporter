@@ -1,4 +1,4 @@
-package: github.com/kadaan/smartthings_exporter
+package: github.com/seanmf83/smartthings_exporter
 import:
 - package: github.com/prometheus/common
   version: 4724e9255275ce38f7179b2478abeae4e28c904f

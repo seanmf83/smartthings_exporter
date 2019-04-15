@@ -1,0 +1,15 @@
+[Unit]
+Description=SmartThingsExporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/smartthings_exporter \
+	--smartthings.oauth-client={{clientId}} \
+	--smartthings.oauth-token.file=/etc/smartthings_exporter/.st_token
+
+[Install]
+WantedBy=multi-user.target
