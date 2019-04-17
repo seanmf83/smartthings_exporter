@@ -25,11 +25,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kadaan/gosmart"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	plog "github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
+	"github.com/seanmf83/gosmart"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -183,22 +183,15 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // as Prometheus metrics. It implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	// Iterate over all devices and collect timeseries info.
-	devs, err := gosmart.GetDevices(e.client, e.endpoint)
+	devs, err := gosmart.GetAllDevices(e.client, e.endpoint)
 	if err != nil {
 		plog.Errorf("Error reading list of devices from %v: %v\n", e.endpoint, err)
 	}
 
-	// TODO run in parallel to reduce time
 	for _, dev := range devs {
-		devinfo, errdi := gosmart.GetDeviceInfo(e.client, e.endpoint, dev.ID)
-		if errdi != nil {
-			plog.Errorf("GetDeviceInfo Failed => %v", err)
-			continue
-		}
+		plog.Debugf("Dev> %s Id:%s - Fetching Attributes => %d\n", dev.DisplayName, dev.ID, len(dev.Attributes))
 
-		plog.Debugf("Dev> %s Id:%s - Fetching Attributes => %d\n", dev.DisplayName, dev.ID, len(devinfo.Attributes))
-
-		for k, val := range devinfo.Attributes {
+		for k, val := range dev.Attributes {
 			if val == nil {
 				val = ""
 			}

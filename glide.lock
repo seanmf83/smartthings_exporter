@@ -15,8 +15,8 @@ imports:
   version: bbd03ef6da3a115852eaf24c8a1c46aeb39aa175
   subpackages:
   - proto
-- name: github.com/kadaan/gosmart
-  version: c9d59b59ab0e9b57c80da728258ffad4485efe7e
+- name: github.com/seanmf83/gosmart
+  version: 7ccd03653f8cef70c01eac4ccc63fd4f09dd3d47
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
 - name: github.com/matttproud/golang_protobuf_extensions
