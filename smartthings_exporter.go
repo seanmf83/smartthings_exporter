@@ -55,6 +55,7 @@ var (
 	monitorOAuthTokenFile *string
 
 	valOpenClosed     = []string{"open", "closed"}
+	valLockedUnlocked = []string{"locked", "unlocked"}
 	valInactiveActive = []string{"inactive", "active"}
 	valAbsentPresent  = []string{"not present", "present"}
 	valOffOn          = []string{"off", "on"}
@@ -70,7 +71,121 @@ var (
 			Help: "Total number of metrics that exporter didn't know.",
 		},
 	)
+	droppedMetric = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "smartthings_dropped_metric",
+			Help: "Total number of metrics that exporter purposely dropped.",
+		},
+	)
+	metricsToDrop = map[string]string{
+		"DeviceWatch-DeviceStatus": "stuff here",
+		"DeviceWatch-Enroll":       "stuff here",
+		"numberOfButtons":          "stuff here",
+		"color":                    "stuff here",
+		"colorName":                "stuff here",
+		"button":                   "stuff here",
+		"indicatorStatus":          "stuff here",
+
+		"supportedButtonValues": "stuff here",
+		"bulbTemp":              "stuff here",
+
+		"status":       "stuff here",
+		"threeAxis":    "stuff here",
+		"acceleration": "stuff here",
+		"door":         "stuff here",
+
+		// Rachio (General)
+		"curZoneIsCycling":  "stuff here",
+		"curZoneCycleCount": "stuff here",
+		"controllerOn":      "stuff here",
+		"rainDelay":         "stuff here",
+		"curZoneNumber":     "stuff here",
+		"curZoneWaterTime":  "stuff here",
+		"rainDelayStr":      "stuff here",
+		"hardwareModel":     "stuff here",
+		"hardwareDesc":      "stuff here",
+		"activeZoneCnt":     "stuff here",
+		"curZoneRunStatus":  "stuff here",
+		"standbyMode":       "stuff here",
+		"curZoneName":       "stuff here",
+		"curZoneDuration":   "stuff here",
+		"curZoneStartDate":  "stuff here",
+
+		// Rachio (Valves)
+		"zoneSquareFeet":           "stuff here",
+		"efficiency":               "stuff here",
+		"indicashadeNametorStatus": "stuff here",
+		"zoneName":                 "stuff here",
+		"saturatedDepthOfWater":    "stuff here",
+		"zoneNumber":               "stuff here",
+		"watering":                 "stuff here",
+		"zoneTotalDuration":        "stuff here",
+		"rootZoneDepth":            "stuff here",
+		"zoneWaterTime":            "stuff here",
+		"depthOfWater":             "stuff here",
+		"zoneElapsed":              "stuff here",
+		"slopeName":                "stuff here",
+		"cropName":                 "stuff here",
+		"availableWater":           "stuff here",
+		"nozzleName":               "stuff here",
+		"maxRuntime":               "stuff here",
+		"zoneDuration":             "stuff here",
+		"zoneStartDate":            "stuff here",
+		"zoneCycleCount":           "stuff here",
+		"inStandby":                "stuff here",
+		"lastUpdatedDt":            "stuff here",
+		"scheduleType":             "stuff here",
+		"shadeName":                "stuff here",
+		"valve":                    "stuff here",
+		"soilName":                 "stuff here",
+
+		// DLINK Cam Stuff
+		"image":         "stuff here",
+		"statusMessage": "stuff here",
+		"mute":          "stuff here",
+		"hubactionMode": "stuff here",
+		"switch2":       "stuff here",
+		"switch3":       "stuff here",
+		"switch4":       "stuff here",
+		"switch5":       "stuff here",
+		"switch6":       "stuff here",
+		"captureTime":   "stuff here",
+		"camera":        "stuff here",
+		"settings":      "stuff here",
+		"stream":        "stuff here",
+		"clip":          "stuff here",
+
+		// Arlo Cams Stuff
+		"nightVision":        "stuff here",
+		"powerManagement":    "stuff here",
+		"desiredCameraState": "stuff here",
+		"ruleId":             "stuff here",
+		"sound":              "stuff here",
+		"invertImage":        "stuff here",
+		"offline":            "stuff here",
+		"rssi":               "stuff here",
+		"active":             "stuff here",
+		"timeLastRefresh":    "stuff here",
+		"lqi":                "stuff here",
+		"clipStatus":         "stuff here",
+
+		// Room Stuff
+		"occupancy":        "stuff here",
+		"occupancyIconURL": "stuff here",
+		"countdown":        "stuff here",
+
+		// Multisensor Stuff
+		"batteryStatus": "stuff here",
+		"tamper":        "stuff here",
+		"powerSource":   "stuff here",
+	}
 	metrics = map[string]*metric{
+		"alarm": {prometheus.NewDesc(prometheus.BuildFQName(namespace, "", "alarm"),
+			"1 if the alarm is on.", []string{"id", "name"}, nil),
+			func(i interface{}) (f float64, e error) {
+				return valueOneOf(i, valOffOn)
+			}},
+
 		"alarmState": {prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "alarm_cleared"), "0 if the alarm is clear.",
 			[]string{"id", "name"}, nil), valueClear},
@@ -79,6 +194,7 @@ var (
 			prometheus.BuildFQName(namespace, "", "battery_percentage"),
 			"Percentage of battery remaining.", []string{"id", "name"}, nil), valueFloat},
 
+		// TODO fix this duplication
 		"carbonMonoxide": {prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "contact_closed"),
 			"1 if the contact is closed.", []string{"id", "name"}, nil), valueClear},
@@ -101,6 +217,29 @@ var (
 				return value * 3600000, err
 			}},
 
+		"humidity": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "humidity_level"),
+			"Humidity Level.", []string{"id", "name"}, nil), valueFloat},
+
+		"fanSpeed": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "fan_level"),
+			"Fan Level.", []string{"id", "name"}, nil), valueFloat},
+
+		"illuminance": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "lux_level"),
+			"LUX Level.", []string{"id", "name"}, nil), valueFloat},
+
+		"level": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "level_percent"),
+			"Level.", []string{"id", "name"}, nil), valueFloat},
+
+		"lock": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "locked"),
+			"Is Locked.", []string{"id", "name"}, nil),
+			func(i interface{}) (f float64, e error) {
+				return valueOneOf(i, valLockedUnlocked)
+			}},
+
 		"motion": {prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "motion_detected"),
 			"1 if presence is detected.", []string{"id", "name"}, nil),
@@ -119,6 +258,10 @@ var (
 				return valueOneOf(i, valAbsentPresent)
 			}},
 
+		"pressure": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "pressure_pascals"),
+			"Current pressure in pascals.", []string{"id", "name"}, nil), valueFloat},
+
 		"smoke": {prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "smoke_detected"), "1 if smoke is detected.",
 			[]string{"id", "name"}, nil), valueClear},
@@ -132,6 +275,60 @@ var (
 		"temperature": {prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "temperature_fahrenheit"),
 			"Temperature in fahrenheit.", []string{"id", "name"}, nil), valueFloat},
+
+		"ultravioletIndex": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "ultraviolet_index"),
+			"Ultraviolet Index.", []string{"id", "name"}, nil), valueFloat},
+
+		// Tesla Stuff
+		"speed": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "speed_miles_per_hour"),
+			"Speed at Miles Per Hour.", []string{"id", "name"}, nil), valueFloat},
+
+		"heading": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "heading"),
+			"heading.", []string{"id", "name"}, nil), valueFloat},
+
+		"longitude": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "longitude"),
+			"longitude.", []string{"id", "name"}, nil), valueFloat},
+
+		"latitude": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "latitude"),
+			"latitude.", []string{"id", "name"}, nil), valueFloat},
+
+		"odometer": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "odometer"),
+			"odometer.", []string{"id", "name"}, nil), valueFloat},
+
+		"batteryRange": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "battery_range"),
+			"Range in Miles for Battery.", []string{"id", "name"}, nil), valueFloat},
+
+		// TBD
+		"healthStatus": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "healthStatus"),
+			"Health Status.", []string{"id", "name"}, nil), valueFloat},
+
+		"hue": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "hue"),
+			"Lighting Hue.", []string{"id", "name"}, nil), valueFloat},
+
+		"saturation": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "saturation"),
+			"Lighting Saturation.", []string{"id", "name"}, nil), valueFloat},
+
+		"whiteLevel": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "whiteLevel"),
+			"White Light Level.", []string{"id", "name"}, nil), valueFloat},
+
+		"checkInterval": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "checkInterval"),
+			"Check Interval.", []string{"id", "name"}, nil), valueFloat},
+
+		"colorTemperature": {prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "colorTemperature"),
+			"Color Temperature.", []string{"id", "name"}, nil), valueFloat},
 	}
 )
 
@@ -171,7 +368,7 @@ func NewExporter(oauthClient string, oauthToken *oauth2.Token) (*Exporter, error
 	}, nil
 }
 
-// Describe describes all the metrics ever exported by the Kafka exporter. It
+// Describe describes all the metrics ever exported by the SmartThings exporter. It
 // implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, m := range metrics {
@@ -179,7 +376,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-// Collect fetches the stats from configured Kafka location and delivers them
+// Collect fetches the stats from configured SmartThings location and delivers them
 // as Prometheus metrics. It implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	// Iterate over all devices and collect timeseries info.
@@ -197,6 +394,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			}
 
 			var value float64
+			toDrop := metricsToDrop[k]
+			if toDrop != "" {
+				droppedMetric.Inc()
+				plog.Debugf("  Attr> '%s' [val=%v] - Dropped", k, val)
+				continue
+			}
+
 			//var metricDesc *prometheus.Desc
 			metric := metrics[k]
 			if metric == nil {
@@ -337,6 +541,7 @@ func monitor(_ *kingpin.ParseContext) error {
 	}
 	prometheus.MustRegister(invalidMetric)
 	prometheus.MustRegister(unknownMetric)
+	prometheus.MustRegister(droppedMetric)
 	prometheus.MustRegister(exporter)
 
 	http.Handle(*metricsPath, promhttp.Handler())

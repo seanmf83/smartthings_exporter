@@ -2,3 +2,6 @@
 .idea/
 dist/
 vendor/
+*.log
+*.exe
+.st_token
